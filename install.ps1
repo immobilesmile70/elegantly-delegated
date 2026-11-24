@@ -4,5 +4,11 @@ if (-not $node) {
     exit 1
 }
 
-& $node.Source (Join-Path $PSScriptRoot 'scripts/install.mjs') @args
+$entry = 'scripts/install.mjs'
+if ($args.Count -gt 0 -and $args[0] -eq '--codex-route') {
+    $entry = 'scripts/codex-route.mjs'
+    $args = @($args | Select-Object -Skip 1)
+}
+
+& $node.Source (Join-Path $PSScriptRoot $entry) @args
 exit $LASTEXITCODE

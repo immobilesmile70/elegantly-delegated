@@ -22,6 +22,8 @@ Aim for verified task quality at a lower total inference cost. The supervisor ow
 
 ## Give a compact execution contract
 
+Keep planning and critical debugging on a high-capability model. Use a lower-cost tier identified by the host catalog or configured by the operator for routine work. Keep trivial work to one turn. From the project checkout, `node scripts/codex-route.mjs models` shows candidate tiers for the optional signed-in, read-only Codex CLI runner. Workers should never invoke the router themselves.
+
 Make the hard decisions before assigning implementation. Send just enough context for the worker to act independently, especially if it starts with an empty conversation. Each assignment should include:
 
 1. **Outcome** — the deliverable and how it fits into the task.
@@ -33,6 +35,8 @@ Make the hard decisions before assigning implementation. Send just enough contex
 Share decisions and relevant evidence without replaying extended reasoning. Let the worker choose routine implementation details inside the contract. Keep additional spawning disabled where available. Assign follow-on work from the supervisor so ownership and costs stay visible.
 
 ## Verify and intervene
+
+Preserve the original contract during fallback. Stop on authentication, permission, or subscription quota errors. Keep raw diagnostics and credentials out of shared reports. On Windows, check Python availability and required imports before assigning a Python execution task. From the checkout, `node scripts/codex-route.mjs python --module yaml` probes the interpreter and PyYAML.
 
 - Treat worker summaries as leads. Inspect relevant diffs and integration points. Run the smallest deterministic check that proves each acceptance criterion, then cover regressions where the change could affect existing behavior. Verify every boundary before combining work from multiple writers.
 - Use a separate verification worker when independence materially improves confidence. Supply the contract and changed artifacts, and ask for reproducible failures and test output. The supervisor resolves disagreements and decides whether the result can ship.

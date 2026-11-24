@@ -61,6 +61,10 @@ Codex discovers skills in `.agents/skills/` and `~/.agents/skills/`. Profiles li
 
 Workers inherit the parent's provider, sandbox, approval mode, and MCP servers in current local CLI documentation. `ed-recon` is instruction-only read-only in a writable session. Use a read-only parent/session for an enforced read-only pass. Send a compact contract and inspect the separate worker thread. Capture runtime model metadata wherever the installed client exposes it. [Skills](https://learn.chatgpt.com/docs/build-skills) · [Subagents and configuration](https://learn.chatgpt.com/docs/agent-configuration/subagents)
 
+On Windows with CLI 0.172.0, use a trusted project and a regular session to verify native spawning. The ephemeral Multi-agent V2 probe failed because the parent thread had no stored rollout. In regular sessions both generated profiles launched, but their worker metadata recorded the supervisor model despite the profile model setting. Verify the live worker model before relying on native profiles for cost control. For read-only work, the standalone router provides explicit model requests and per-attempt usage counters.
+
+Check Python from inside the worker's effective sandbox before assigning execution. In the live test a per-user install was visible to the router running under the Windows account, and the worker completed its Python smoke test with a copy of that interpreter inside the isolated project.
+
 ## OpenCode
 
 1. Choose an available supervisor in `/models` or set the default `model` in OpenCode configuration.

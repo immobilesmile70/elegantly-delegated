@@ -135,6 +135,10 @@ test('updates from a new checkout and keeps installed worker model on skill-only
   const result = spawnSync(process.execPath, [cli, ...args, '--worker-model', 'small-two'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.match(readFileSync(worker, 'utf8'), /model = "small-two"/);
+  const backup = (text, filename) => join(destination, '.elegantly-delegated', 'backups',
+    createHash('sha256').update(text).digest('hex') + '-' + filename);
+  assert.deepEqual(readFileSync(backup(skill, 'SKILL.md')), skill);
+  assert.equal(readFileSync(backup(original, 'ed-recon.toml'), 'utf8'), original);
 });
 
 test('partial skill removal preserves workers and reinstall restores the skill', t => {
@@ -252,4 +256,24 @@ test('preparation creates isolated byte-identical copies and rejects an existing
   const second = spawnSync(process.execPath, args, { encoding: 'utf8' });
   assert.equal(second.status, 1);
   assert.match(second.stderr, /new directory/);
+});
+
+test('preparation copies every file and preserves a pre-existing destination', t => {
+  const root = isolated(t);
+  const prepare = join(project, 'benchmarks', 'prepare.mjs');
+  const workspace = join(root, 'new parent', 'ED-06 condition D');
+  const args = [prepare, 'ed-06', workspace];
+  const first = spawnSync(process.execPath, args, { encoding: 'utf8' });
+  assert.equal(first.status, 0, first.stderr);
+  for (const name of ['clamp.mjs', 'ranges.mjs', 'slug.mjs']) {
+    const path = join(workspace, name);
+    assert.deepEqual(readFileSync(path),
+      readFileSync(join(project, 'benchmarks', 'fixtures', 'ed-06', name)));
+  }
+  const local = join(workspace, 'local.txt');
+  write(local, 'keep this');
+  const second = spawnSync(process.execPath, args, { encoding: 'utf8' });
+  assert.equal(second.status, 1);
+  assert.match(second.stderr, /new directory/);
+  assert.equal(readFileSync(local, 'utf8'), 'keep this');
 });

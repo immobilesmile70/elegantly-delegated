@@ -29,7 +29,6 @@ jobs:
           python -m pip install PyYAML==6.0.3
           python tests/check_configs.py
       - name: Smoke-test Bash installer
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           project_dir="${RUNNER_TEMP}/ed bash smoke"

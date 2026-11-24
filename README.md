@@ -30,6 +30,37 @@ The standard skills installer lets you select agents and installs the skill only
 
 ## Use it
 
+### Codex routing and verification
+
+The installed skill guides native workers inside Codex. The checkout also provides an explicit read-only CLI router using your existing ChatGPT sign-in. It selects a model for each independent task, keeps simple requests to one turn, and retries eligible failures with a compatible catalog candidate. The CLI router can return proposed edits and read local files. Apply and verify changes through the supervising Codex session or native implementation workers.
+
+```powershell
+Set-Location 'C:\Users\mihir\elegantly-delegated'
+node scripts/install.mjs --target codex --project .
+node scripts/codex-route.mjs models
+node scripts/verify-codex.mjs
+node --test tests/*.test.mjs
+node scripts/codex-route.mjs python --module yaml
+node scripts/codex-route.mjs python --module yaml --script tests/check_configs.py
+codex.cmd login status
+node scripts/codex-route.mjs run 'Draft a concise README paragraph describing the current installer.'
+node benchmarks/run-codex.mjs --run
+```
+
+The Windows launcher also accepts `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 --codex-route models`. The Git Bash equivalent is `bash ./install.sh --codex-route models`. To generate native profiles, add `--worker-model MODEL_ID` to the installer command using an ID confirmed for your session. Project installation retains backups of managed files it replaces under `.elegantly-delegated/backups/`. A global refresh is a separate install.
+
+The router classifies architecture, planning, and debugging as complex. Other prompts default to routine. Use `--tier routine` or `--tier complex` to correct an ambiguous classification. `models` displays candidates from the bundled catalog without authenticating. Actual execution discovers the CLI catalog after sign-in. Catalog membership alone does not guarantee entitlement.
+
+```text
+node scripts/codex-route.mjs batch ./prompts.json --config ./routing.json --cwd ./project
+```
+
+`prompts.json` is an array of independent prompt strings. Defaults are two attempts per task, two concurrent tasks, at most four tasks per batch, 40 seconds per attempt, 60 seconds across the batch, and a 35,000 observed-token threshold. Override them with `maxAttempts`, `maxParallel`, `maxTasks`, `attemptTimeoutMs`, `timeoutMs`, and `maxObservedTokens`. Optional `routine` and `complex` arrays set ordered model preferences filtered through the catalog. The token threshold prevents new attempts after observed usage reaches it. In-flight turns and attempts without usage still require separate accounting.
+
+Router answers go to stdout. JSON diagnostics and separate supervisor and worker usage summaries go to stderr. Counters include cached input and reasoning where the CLI reports them. The runner uses read-only sandboxing, disables native agent spawning and optional integration features for its turns, and stops on sign-in, permission, or subscription quota failures. Use it with a trusted local checkout. The technical verification steps and remaining gaps are in the [audit report](PLUGIN_TEST_REPORT.md) and [benchmark report](BENCHMARK_REPORT.md).
+
+Set `ED_PYTHON` to an absolute interpreter path if Windows discovery misses your installation. The Python command distinguishes a missing interpreter from a failed dependency import and can run an explicitly supplied local script through the verified interpreter. Use a trusted script. Dependency checks use an isolated import probe, so install project dependencies in the selected environment.
+
 Example prompt for a coding agent:
 
 > Add JSON export to the issue list. Keep the existing CSV export behavior. Run the export tests and check that the empty-list response still works.
@@ -66,7 +97,7 @@ Additional installers cover Cursor and GitHub Copilot CLI with optional workers,
 
 Prior work on routing and small-model collaboration motivates testing this approach. Task structure and coordination overhead can change the outcome, and skill effectiveness varies by task. The project evaluates its own policy using identical coding tasks with and without the skill. [Research notes](docs/research.md) · [Evaluation methodology](benchmarks/methodology.md)
 
-Original performance results and live heterogeneous-delegation verification are pending. Start with [test.md](test.md) and use [the results template](benchmarks/results/README.md) to record the evidence.
+The [benchmark report](BENCHMARK_REPORT.md) records live Work and standalone CLI comparisons, including answer correctness, token counters, and the limits of subscription credit attribution. Start with [test.md](test.md) and use [the results template](benchmarks/results/README.md) to record additional evidence.
 
 Delegation can slow down small or tightly coupled changes, and a worker with insufficient capability may create more review and rework. Some harnesses inherit the supervisor's model or report only the requested tier. The skill uses model controls when available and treats runtime identity and cost as evidence to collect.
 

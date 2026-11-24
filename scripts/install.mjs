@@ -145,6 +145,12 @@ function applyChanges(changes, receipt, receiptPath, log, dryRun) {
     // Record both valid states before a mutation so an interrupted operation can be retried.
     if (before !== after) {
       if (hashAt(path) !== before) throw new Error('File changed during installation at ' + path);
+      if (before !== null && after !== null) {
+        // Preserve the previous managed skill or profile before replacing it.
+        const backup = join(dirname(receiptPath), 'backups', before + '-' + basename(path));
+        if (!safeFile(backup)) writeAtomic(backup, readFileSync(path));
+        if (hashAt(backup) !== before) throw new Error('Installer backup verification failed at ' + backup);
+      }
       receipt[key] = { current: before, pending: after };
       save();
       if (after === null) unlinkSync(path);
