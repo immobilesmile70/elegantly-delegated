@@ -1,0 +1,52 @@
+name: Infrastructure tests
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Test paths, lifecycle, links, and benchmark fixtures
+        run: node --test tests/*.test.mjs
+      - name: Parse canonical and generated configuration files
+        run: |
+          python -m pip install PyYAML==6.0.3
+          python tests/check_configs.py
+      - name: Smoke-test Bash installer
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          project_dir="${RUNNER_TEMP}/ed bash smoke"
+          ./install.sh --target codex --project "$project_dir" --worker-model account-mini
+          test -f "$project_dir/.agents/skills/elegantly-delegated/SKILL.md"
+          test -f "$project_dir/.codex/agents/ed-recon.toml"
+          ./install.sh --target codex --project "$project_dir" --uninstall
+          test ! -f "$project_dir/.agents/skills/elegantly-delegated/SKILL.md"
+      - name: Smoke-test PowerShell installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $projectDir = Join-Path $env:RUNNER_TEMP 'ed powershell smoke'
+          & .\install.ps1 --target codex --project $projectDir --worker-model account-mini
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path -LiteralPath (Join-Path $projectDir '.agents/skills/elegantly-delegated/SKILL.md'))) { exit 1 }
+          if (-not (Test-Path -LiteralPath (Join-Path $projectDir '.codex/agents/ed-recon.toml'))) { exit 1 }
+          & .\install.ps1 --target codex --project $projectDir --uninstall
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path -LiteralPath (Join-Path $projectDir '.agents/skills/elegantly-delegated/SKILL.md')) { exit 1 }
