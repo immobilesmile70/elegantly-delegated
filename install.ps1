@@ -1,4 +1,4 @@
-$node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue
+$node = Get-Command node -CommandType Application -TotalCount 1 -ErrorAction SilentlyContinue
 if (-not $node) {
     [Console]::Error.WriteLine('elegantly-delegated requires Node.js 22 or newer.')
     exit 1
