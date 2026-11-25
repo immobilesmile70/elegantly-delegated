@@ -53,13 +53,18 @@ function readJson(path) {
 async function main(args) {
   const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
     config: { type: 'string' }, cwd: { type: 'string' }, tier: { type: 'string' },
+    jsonl: { type: 'boolean' },
     help: { type: 'boolean' }, module: { type: 'string', multiple: true }, script: { type: 'string' },
   } });
   const [operation, ...rest] = positionals;
   if (values.help || !operation) {
-    console.log('Usage: codex-route models | python [--module NAME] [--script PATH] | run "prompt" | batch prompts.json');
+    console.log('Usage: codex-route models | python [--module NAME] [--script PATH] | run "prompt" | batch prompts.json [--jsonl]');
     console.log('Options for routing: --cwd PATH --config PATH --tier routine|complex');
+    console.log('Batch output: --jsonl prints one JSON record per prompt.');
     return;
+  }
+  if (values.jsonl && operation !== 'batch') {
+    throw new Error('--jsonl is only supported for batch.');
   }
   if (operation === 'python' && !rest.length) {
     const result = await findPython({ modules: values.module ?? [] });
@@ -99,9 +104,18 @@ async function main(args) {
   };
   const results = await runBatch(operation === 'run' ? rest : readJson(rest[0]), config, execute);
   // Attempts contain fixed categories and counters only. The requested answer is written separately.
-  for (const { answer, ...diagnostics } of results) {
+  for (const [taskIndex, { answer, ...diagnostics }] of results.entries()) {
     console.error(JSON.stringify(diagnostics));
-    if (answer !== undefined) console.log(answer);
+    if (values.jsonl) {
+      console.log(JSON.stringify({
+        taskIndex,
+        status: diagnostics.status,
+        answer: answer ?? null,
+        attempts: diagnostics.attempts,
+      }));
+    } else if (answer !== undefined) {
+      console.log(answer);
+    }
   }
   console.error(JSON.stringify({ type: 'usage_summary', roles: usageByRole(results) }));
   if (results.some(result => result.status !== 'ok')) process.exitCode = 1;
