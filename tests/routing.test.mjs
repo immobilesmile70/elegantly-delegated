@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { codexClient, effortFor } from '../scripts/codex-route.mjs';
 import { capture } from '../scripts/process.mjs';
 import { candidates, classify, decodeTurn, route, runBatch, settings, usageByRole } from '../scripts/routing.mjs';
@@ -140,6 +142,60 @@ test('Codex subprocess receives read-only, no-recursion, ChatGPT-only settings a
   assert.equal((await client.execute('small-test', 'literal & | "context"', 5000, 'low')).status, 'ok');
   assert.equal((await capture([process.execPath], ['-e', 'setInterval(() => {}, 1000)'],
     { timeoutMs: 100 })).category, 'timeout');
+});
+
+test('batch JSONL preserves failed positions and multiline answers', t => {
+  const folder = mkdtempSync(join(tmpdir(), 'ed batch cli '));
+  t.after(() => rmSync(folder, { recursive: true, force: true }));
+  const mock = process.platform === 'win32'
+    ? join(folder, 'node_modules', '@openai', 'codex', 'bin', 'codex.js')
+    : join(folder, 'codex');
+  mkdirSync(dirname(mock), { recursive: true });
+  const multiline = 'first line\nsecond line';
+  const answered = [
+    JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: multiline } }),
+    completed.split('\n').at(-1),
+  ].join('\n');
+  writeFileSync(mock, [
+    '#!/usr/bin/env node',
+    "const { readFileSync } = require('node:fs');",
+    'const args = process.argv.slice(2);',
+    "if (args.includes('login')) { console.log('Logged in using ChatGPT'); }",
+    "else if (args.includes('models')) { console.log(" + JSON.stringify(JSON.stringify(catalog)) + "); }",
+    "else if (readFileSync(0, 'utf8') === 'middle') {",
+    "  console.log(JSON.stringify({ type: 'turn.failed', error: { message: 'worker failed' } }));",
+    '  process.exitCode = 1;',
+    '} else { console.log(' + JSON.stringify(answered) + '); }',
+  ].join('\n') + '\n', { mode: 0o755 });
+
+  const env = Object.fromEntries(Object.entries(process.env)
+    .filter(([key]) => !['PATH', 'ELEGANTLY_DELEGATED_RUNNING'].includes(key.toUpperCase())));
+  env.PATH = [folder, dirname(process.execPath), process.env.PATH ?? process.env.Path]
+    .filter(Boolean).join(delimiter);
+  const prompts = join(folder, 'prompts.json');
+  writeFileSync(prompts, JSON.stringify(['first', 'middle', 'last']));
+  const cli = fileURLToPath(new URL('../scripts/codex-route.mjs', import.meta.url));
+  const execute = (...args) => spawnSync(process.execPath, [cli, ...args],
+    { env, encoding: 'utf8', timeout: 15_000 });
+
+  const structured = execute('batch', prompts, '--jsonl');
+  assert.equal(structured.status, 1, structured.error?.message ?? structured.stderr);
+  const rows = structured.stdout.trimEnd().split(/\r?\n/).map(line => JSON.parse(line));
+  assert.deepEqual(rows.map(({ taskIndex, status, answer, attempts }) =>
+    [taskIndex, status, answer, attempts.map(attempt => attempt.status)]), [
+    [0, 'ok', multiline, ['ok']],
+    [1, 'worker_failed', null, ['worker_failed']],
+    [2, 'ok', multiline, ['ok']],
+  ]);
+  const diagnostics = structured.stderr.trimEnd().split(/\r?\n/).map(line => JSON.parse(line));
+  assert.equal(diagnostics.at(-1).type, 'usage_summary');
+
+  const plain = execute('batch', prompts);
+  assert.equal(plain.status, 1, plain.error?.message ?? plain.stderr);
+  assert.equal(plain.stdout, multiline + '\n' + multiline + '\n');
+  const invalid = execute('run', '--jsonl', 'first');
+  assert.equal(invalid.status, 1, invalid.error?.message ?? invalid.stderr);
+  assert.equal(JSON.parse(invalid.stderr).message, '--jsonl is only supported for batch.');
 });
 
 test('Python discovery handles Windows paths, aliases, missing dependencies and fallback', async t => {
