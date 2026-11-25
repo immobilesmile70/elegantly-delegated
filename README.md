@@ -34,9 +34,10 @@ The standard skills installer lets you select agents and installs the skill only
 
 The installed skill guides native workers inside Codex. The checkout also provides an explicit read-only CLI router using your existing ChatGPT sign-in. It selects a model for each independent task, keeps simple requests to one turn, and retries eligible failures with a compatible catalog candidate. The CLI router can return proposed edits and read local files. Apply and verify changes through the supervising Codex session or native implementation workers.
 
+This checkout already includes the Codex skill. Run the commands below from the root of this checkout. To install the skill in another project, replace `../your-coding-project` with the path to that project.
+
 ```powershell
-Set-Location 'C:\Users\mihir\elegantly-delegated'
-node scripts/install.mjs --target codex --project .
+node scripts/install.mjs --target codex --project "../your-coding-project"
 node scripts/codex-route.mjs models
 node scripts/verify-codex.mjs
 node --test tests/*.test.mjs
